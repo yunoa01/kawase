@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>円換算</title>
+<style>
+  :root{
+    --white:#ffffff;
+    --gray:#f5f5f7;
+    --text:#1d1d1f;
+    --sub:#6e6e73;
+    --line:#d2d2d7;
+    --blue:#0071e3;
+    --blue-dark:#0066cc;
+    --font:-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+           "Helvetica Neue", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--white);color:var(--text);
+    font-family:var(--font);font-size:17px;line-height:1.5;
+    letter-spacing:.01em;-webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  .nav{
+    position:sticky;top:0;z-index:10;height:44px;
+    background:rgba(255,255,255,.72);backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    border-bottom:1px solid rgba(0,0,0,.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:600;letter-spacing:.02em;
+  }
+
+  section{padding:0 22px}
+  .inner{max-width:680px;margin:0 auto}
+
+  .hero{padding-top:52px;padding-bottom:44px;text-align:center}
+  .hero h1{
+    font-size:clamp(34px,8vw,54px);font-weight:600;
+    letter-spacing:-.02em;line-height:1.1;margin:0 0 14px;
+  }
+  .hero p{
+    font-size:clamp(16px,3.4vw,19px);color:var(--sub);
+    line-height:1.6;margin:0 auto;max-width:520px;
+  }
+
+  .band{background:var(--gray);padding-top:48px;padding-bottom:48px}
+  .card{
+    background:var(--white);border-radius:20px;padding:26px 22px;
+    box-shadow:0 4px 24px rgba(0,0,0,.06);
+  }
+  .card + .card{margin-top:16px}
+
+  h2{
+    font-size:clamp(24px,5vw,32px);font-weight:600;letter-spacing:-.015em;
+    margin:0 0 22px;text-align:center;
+  }
+
+  .field{margin-bottom:14px}
+  .field:last-child{margin-bottom:0}
+  .label{font-size:13px;color:var(--sub);margin:0 0 6px 4px;letter-spacing:.02em}
+  .shell{
+    display:flex;align-items:center;gap:10px;
+    background:var(--gray);border:1px solid transparent;border-radius:14px;
+    padding:12px 16px;transition:border-color .2s, box-shadow .2s;
+  }
+  .shell:focus-within{border-color:var(--blue);box-shadow:0 0 0 4px rgba(0,113,227,.18)}
+  .shell input{
+    flex:1;min-width:0;border:0;background:transparent;padding:0;text-align:right;
+    font-family:var(--font);font-size:26px;font-weight:500;color:var(--text);
+    letter-spacing:-.01em;font-variant-numeric:tabular-nums;
+  }
+  .shell input:focus{outline:none}
+  .shell input::placeholder{color:#b0b0b6}
+  .shell .cur{font-size:15px;color:var(--sub);white-space:nowrap;flex:none}
+
+  .field.result .shell{background:var(--white);border-color:var(--line)}
+  .field.result input{font-size:clamp(30px,7.5vw,40px);font-weight:600;letter-spacing:-.02em}
+  .field.result .cur{font-size:18px;color:var(--text)}
+
+  /* レート欄：minmax(0,1fr) で中身のはみ出しを防ぐ */
+  .rates{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:14px}
+  @media (max-width:430px){ .rates{grid-template-columns:1fr} }
+  .rates .shell{padding:10px 14px}
+  .rates input{font-size:19px;font-weight:500}
+  .rates .cur{font-size:14px}
+
+  .status{margin-top:20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+  #status{font-size:14px;color:var(--sub)}
+  .source{font-size:12px;color:var(--sub);margin:0}
+  .source a{color:var(--blue);text-decoration:none}
+  .source a:hover{text-decoration:underline}
+  #reload{
+    font-family:var(--font);font-size:15px;letter-spacing:.01em;
+    color:#fff;background:var(--blue);border:0;border-radius:980px;
+    padding:11px 22px;cursor:pointer;transition:background .2s;
+  }
+  #reload:hover{background:var(--blue-dark)}
+  #reload:focus-visible{outline:4px solid rgba(0,113,227,.35);outline-offset:2px}
+
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;table-layout:fixed}
+  th{font-size:13px;font-weight:400;color:var(--sub);text-align:right;padding:0 0 12px;border-bottom:1px solid var(--line)}
+  th:first-child{text-align:left}
+  td{font-size:17px;padding:13px 0;text-align:right;border-bottom:1px solid #ebebed}
+  td:first-child{text-align:left;color:var(--sub)}
+  tr:last-child td{border-bottom:0}
+
+  footer{padding:34px 22px 44px;background:var(--gray)}
+  footer .inner{font-size:12px;color:var(--sub);line-height:1.9}
+  footer hr{border:0;border-top:1px solid var(--line);margin:0 0 18px}
+  footer a{color:var(--blue);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .8s cubic-bezier(.28,.11,.32,1),transform .8s cubic-bezier(.28,.11,.32,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion: reduce){ .reveal{opacity:1;transform:none;transition:none} }
+</style>
+</head>
+<body>
+
+<div class="nav">円換算</div>
+
+<section class="hero">
+  <div class="inner reveal">
+    <h1>円換算</h1>
+    <p>元とドルの金額を日本円に換算します。どの欄に入力しても、残りが自動で計算されます。</p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="inner">
+    <div class="card reveal">
+      <div class="field">
+        <p class="label">元（CNY）</p>
+        <div class="shell"><input id="inCny" type="text" inputmode="decimal" placeholder="0" aria-label="元の金額"><span class="cur">元</span></div>
+      </div>
+      <div class="field">
+        <p class="label">ドル（USD）</p>
+        <div class="shell"><input id="inUsd" type="text" inputmode="decimal" placeholder="0" aria-label="ドルの金額"><span class="cur">ドル</span></div>
+      </div>
+      <div class="field result">
+        <p class="label">日本円（JPY）</p>
+        <div class="shell"><input id="inJpy" type="text" inputmode="decimal" placeholder="0" aria-label="円の金額"><span class="cur">円</span></div>
+      </div>
+    </div>
+
+    <div class="card reveal">
+      <div class="rates">
+        <div>
+          <p class="label">1元</p>
+          <div class="shell"><input id="rateCny" type="text" inputmode="decimal" value="20.50" aria-label="1元あたりの円"><span class="cur">円</span></div>
+        </div>
+        <div>
+          <p class="label">1ドル</p>
+          <div class="shell"><input id="rateUsd" type="text" inputmode="decimal" value="148.00" aria-label="1ドルあたりの円"><span class="cur">円</span></div>
+        </div>
+      </div>
+      <div class="status">
+        <span id="status">参考値です。更新すると最新のレートを取得します。</span>
+        <p class="source" id="source">
+          提供元：<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">ExchangeRate-API</a>
+        </p>
+        <button id="reload" type="button">レートを更新</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:56px;padding-bottom:56px">
+  <div class="inner reveal">
+    <h2>早見表</h2>
+    <table>
+      <thead><tr><th>金額</th><th>元 → 円</th><th>ドル → 円</th></tr></thead>
+      <tbody id="ladder"></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="inner">
+    <hr>
+    レートの提供元：<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">ExchangeRate-API</a>（1日1回更新の無料公開データ）。取得できない場合は
+    <a href="https://frankfurter.dev" target="_blank" rel="noopener">Frankfurter</a>（欧州中央銀行の参考相場）を使います。<br>
+    どちらも参考相場のため、実際の請求額はカード会社や代行業者の手数料によって変わります。レートの数値は直接書き換えられます。
+  </div>
+</footer>
+
+<script>
+(function(){
+  var rates = { cny: 20.50, usd: 148.00 };
+  var el = function(id){ return document.getElementById(id); };
+  var inCny = el('inCny'), inUsd = el('inUsd'), inJpy = el('inJpy');
+  var rCny = el('rateCny'), rUsd = el('rateUsd');
+  var statusEl = el('status'), sourceEl = el('source');
+  var last = { field: 'cny', value: null };
+
+  function num(s){
+    if(s == null) return NaN;
+    var v = String(s).replace(/[,\s￥¥$]/g, '').replace(/[０-９．]/g, function(c){
+      return c === '．' ? '.' : String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+    });
+    return v === '' ? NaN : parseFloat(v);
+  }
+  function fmtJpy(n){ return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtCur(n){
+    if(!isFinite(n)) return '';
+    return (Math.round(n * 100) / 100).toLocaleString('ja-JP', {maximumFractionDigits:2});
+  }
+
+  function recalc(){
+    var v = last.value;
+    if(!isFinite(v)){
+      [inCny, inUsd, inJpy].forEach(function(i){ if(document.activeElement !== i) i.value = ''; });
+      return;
+    }
+    var jpy = last.field === 'cny' ? v * rates.cny : last.field === 'usd' ? v * rates.usd : v;
+    if(document.activeElement !== inJpy) inJpy.value = fmtJpy(jpy);
+    if(document.activeElement !== inCny) inCny.value = fmtCur(jpy / rates.cny);
+    if(document.activeElement !== inUsd) inUsd.value = fmtCur(jpy / rates.usd);
+  }
+
+  function bind(input, name){
+    input.addEventListener('input', function(){
+      last.field = name; last.value = num(input.value); recalc();
+    });
+    input.addEventListener('blur', function(){ if(isFinite(last.value)) recalc(); });
+  }
+  bind(inCny, 'cny'); bind(inUsd, 'usd'); bind(inJpy, 'jpy');
+
+  function readRates(){
+    var c = num(rCny.value), u = num(rUsd.value);
+    if(isFinite(c) && c > 0) rates.cny = c;
+    if(isFinite(u) && u > 0) rates.usd = u;
+    recalc(); drawLadder();
+  }
+  [rCny, rUsd].forEach(function(i){
+    i.addEventListener('input', readRates);
+    i.addEventListener('blur', function(){
+      rCny.value = rates.cny.toFixed(2); rUsd.value = rates.usd.toFixed(2);
+    });
+  });
+
+  var ladder = el('ladder');
+  var steps = [1, 10, 50, 100, 300, 500, 1000, 3000];
+  function drawLadder(){
+    ladder.innerHTML = steps.map(function(n){
+      return '<tr><td>' + n.toLocaleString('ja-JP') + '</td><td>' +
+        fmtJpy(n * rates.cny) + '</td><td>' + fmtJpy(n * rates.usd) + '</td></tr>';
+    }).join('');
+  }
+
+  function setSource(name, url){
+    sourceEl.innerHTML = '提供元：<a href="' + url + '" target="_blank" rel="noopener">' + name + '</a>';
+  }
+
+  function apply(cny, usd, label){
+    rates.cny = cny; rates.usd = usd;
+    rCny.value = cny.toFixed(2); rUsd.value = usd.toFixed(2);
+    statusEl.textContent = label;
+    recalc(); drawLadder();
+  }
+  function stamp(d){
+    var t = d ? new Date(d) : new Date();
+    if(isNaN(t)) t = new Date();
+    return (t.getMonth()+1) + '月' + t.getDate() + '日時点のレート';
+  }
+
+  async function load(){
+    statusEl.textContent = 'レートを取得中…';
+    try{
+      var r = await fetch('https://open.er-api.com/v6/latest/USD');
+      var d = await r.json();
+      if(d.rates && d.rates.JPY && d.rates.CNY){
+        setSource('ExchangeRate-API', 'https://www.exchangerate-api.com');
+        apply(d.rates.JPY / d.rates.CNY, d.rates.JPY, stamp(d.time_last_update_utc)); return;
+      }
+    }catch(e){}
+    try{
+      var r2 = await fetch('https://api.frankfurter.app/latest?from=USD&to=JPY,CNY');
+      var d2 = await r2.json();
+      if(d2.rates && d2.rates.JPY && d2.rates.CNY){
+        setSource('Frankfurter（欧州中央銀行）', 'https://frankfurter.dev');
+        apply(d2.rates.JPY / d2.rates.CNY, d2.rates.JPY, stamp(d2.date)); return;
+      }
+    }catch(e){}
+    statusEl.textContent = 'レートを取得できません。上の欄に手で入力してください。';
+    sourceEl.innerHTML = '提供元：取得できていません（現在は手入力の値）';
+  }
+
+  el('reload').addEventListener('click', load);
+  drawLadder();
+  load();
+
+  var items = document.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold:.15 });
+    items.forEach(function(i){ io.observe(i); });
+  }else{
+    items.forEach(function(i){ i.classList.add('in'); });
+  }
+})();
+</script>
+</body>
+</html>
